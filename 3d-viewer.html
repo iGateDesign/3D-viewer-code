@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iGate 3D Viewer</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #d8d8d8;
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas" style="width:100%; height:600px;"></canvas>
+
+  <!-- Babylon.js Core Libraries -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylon.glTF2FileLoader.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    canvas.addEventListener('wheel', e => e.preventDefault(), { passive: false });
+
+    const createScene = function () {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.85, 0.85, 0.85, 1);
+
+      // Camera
+      const camera = new BABYLON.ArcRotateCamera("camera",
+        Math.PI / 2, Math.PI / 2.5, 10, BABYLON.Vector3.Zero(), scene);
+      camera.attachControl(canvas, true);
+      camera.lowerRadiusLimit = 3;
+      camera.upperRadiusLimit = 30;
+      camera.angularSensibilityX = 1000;
+      camera.angularSensibilityY = 1000;
+      camera.wheelDeltaPercentage = 0.01;
+
+      // Lighting
+      const light = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+      light.position = new BABYLON.Vector3(20, 40, 20);
+
+      scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData(
+        "https://assets.babylonjs.com/environments/environmentSpecular.env", scene);
+
+      const gui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+      const hotspotData = {
+        "hotspot_adjust-sys": {
+          image: "https://igatedesign.com/assets/icons/adjust-sys.webp",
+          text: "VERTICAL ADJUSTMENT – Generous vertical flexibility ensures seamless installation across varied site conditions."
+        },
+        "hotspot_arm-opener": {
+          image: "https://igatedesign.com/assets/icons/arm-opener.webp",
+          text: "ARM OPENER – Custom-built, low-power actuator designed for lightweight gate operation with optimal efficiency."
+        },
+        "hotspot_call-pad": {
+          image: "https://igatedesign.com/assets/icons/call-pad.webp",
+          text: "CALL PAD – A touch-sensitive interface enables intuitive, on-site access control without compromise."
+        },
+        "hotspot_control-box": {
+          image: null,
+          text: "CONTROL BOX – Combines a standard control unit with our dedicated Wi-Fi HUB for enhanced connectivity and smart integration."
+        },
+        "hotspot_corner-joint": {
+          image: "https://igatedesign.com/assets/icons/corner-joint.webp",
+          text: "DIY JOINT – Precision-crafted connector simplifies profile assembly and strengthens the overall frame."
+        },
+        "hotspot_corten-steel": {
+          image: "https://igatedesign.com/assets/icons/corten-steel.webp",
+          text: "SUSTAINABLE MATERIAL – Weathering steel posts naturally age with the environment, blending durability with artistic character."
+        },
+        "hotspot_ctr-infill": {
+          image: null,
+          text: "CUSTOMIZED ORNAMENT – Clients can select from an expansive library of centre patterns for a personalised aesthetic."
+        },
+        "hotspot_frame": {
+          image: null,
+          text: "DURABLE FRAME – Anodized extruded aluminium ensures structural integrity with a sleek, enduring finish."
+        },
+        "hotspot_gyro-sensor": {
+          image: "https://igatedesign.com/assets/icons/gyro-sensor.webp",
+          text: "HI-TECH SENSORS – Gyroscope and accelerometer modules monitor gate motion and state with precision."
+        },
+        "hotspot_infill": {
+          image: "https://igatedesign.com/assets/icons/infill.webp",
+          text: "3D-PRINTED INFILL – Modular inserts offer stunning visual appeal and simple push-to-fit installation."
+        },
+        "hotspot_solar-pnl": {
+          image: null,
+          text: "SOLAR PANEL – Compact photovoltaic module with precision controller charges our Li-ion system for reliable, off-grid power."
+        }
+      };
+
+      BABYLON.SceneLoader.Append("",
+        "https://igatedesign.com/assets/3d/iWavy-3D-WEB-00.glb",
+        scene, function () {
+          Object.keys(hotspotData).forEach(id => {
+            const mesh = scene.getMeshByName(id);
+            if (!mesh) return;
+
+            const circle = new BABYLON.GUI.Ellipse();
+            circle.width = "24px";
+            circle.height = "24px";
+            circle.color = "orange";
+            circle.thickness = 2;
+            circle.background = "rgba(255,165,0,0.6)";
+            gui.addControl(circle);
+            circle.linkWithMesh(mesh);
+
+            const blinkAnim = new BABYLON.Animation("blink" + id, "alpha", 10,
+              BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+            blinkAnim.setKeys([
+              { frame: 0, value: 1 },
+              { frame: 30, value: 0.3 },
+              { frame: 60, value: 1 }
+            ]);
+            circle.animations = [blinkAnim];
+            scene.beginAnimation(circle, 0, 60, true);
+
+            const popup = new BABYLON.GUI.Rectangle();
+            popup.width = "300px";
+            popup.height = "auto";
+            popup.cornerRadius = 10;
+            popup.color = "orange";
+            popup.thickness = 2;
+            popup.background = "rgba(28,28,28,0.75)";
+            popup.isVisible = false;
+            popup.adaptHeightToChildren = true;
+            gui.addControl(popup);
+
+            const stack = new BABYLON.GUI.StackPanel();
+            stack.width = "100%";
+            stack.paddingTop = "10px";
+            popup.addControl(stack);
+
+            if (hotspotData[id].image) {
+              const image = new BABYLON.GUI.Image("img" + id, hotspotData[id].image);
+              image.width = "200px";
+              image.height = "140px";
+              image.stretch = BABYLON.GUI.Image.STRETCH_UNIFORM;
+              image.autoScale = false;
+              stack.addControl(image);
+            }
+
+            const text = new BABYLON.GUI.TextBlock();
+            text.text = hotspotData[id].text;
+            text.color = "white";
+            text.fontSize = 16;
+            text.height = "100px";
+            text.textWrapping = true;
+            text.resizeToFit = true;
+            text.paddingTop = "10px";
+            text.paddingLeft = "10px";
+            text.paddingRight = "10px";
+            stack.addControl(text);
+
+            const closeIcon = BABYLON.GUI.Button.CreateImageOnlyButton("closeIcon" + id,
+              "https://igatedesign.com/assets/icons/close-cross.png");
+            closeIcon.width = "24px";
+            closeIcon.height = "24px";
+            closeIcon.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+            closeIcon.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+            closeIcon.paddingRight = "8px";
+            closeIcon.paddingTop = "8px";
+            closeIcon.onPointerUpObservable.add(() => popup.isVisible = false);
+            popup.addControl(closeIcon);
+
+            circle.onPointerUpObservable.add(() => {
+              popup.linkWithMesh(mesh);
+              popup.isVisible = true;
+            });
+          });
+        });
+
+      return scene;
+    };
+
+    const scene = createScene();
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener("resize", () => engine.resize());
+  </script>
+</body>
+</html>
